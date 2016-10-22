@@ -34,7 +34,9 @@ def go(f):
 
 @go
 def test(a: int, b: int) -> int:
-    c = a + b + 1
+    def inner(a: int, b: int) -> int:
+        return a + b
+    c = inner(a, b) + 1
     return c
 
 

@@ -1,6 +1,6 @@
 import ast
+from contextlib import contextmanager
 from functools import wraps
-
 
 def debug(f):
     @wraps(f)
@@ -11,7 +11,19 @@ def debug(f):
     return wrapped
 
 
+@contextmanager
+def stack(stack, item):
+    try:
+        stack.append(item)
+        yield
+    finally:
+        stack.pop()
+
+
 class GoTranspiler(ast.NodeVisitor):
+
+    def __init__(self):
+        self.stack_FunctionDef = []
 
     def generic_visit(self, node):
         return '// UNSUPPORTED => ' + ast.dump(node)
@@ -122,8 +134,19 @@ class GoTranspiler(ast.NodeVisitor):
         else:
             returns = ' ' + self.visit(node.returns)
 
-        lines = ['func ' + node.name + '(' + args + ')' + returns + ' {']
-        lines.extend('\t' + self.visit(n) for n in node.body)
+        lines = []
+
+        if self.stack_FunctionDef:
+            lines.append('var ' + node.name + ' = func(' + args + ')' + returns + ' {')
+        else:
+            lines.append('func ' + node.name + '(' + args + ')' + returns + ' {')
+
+        with stack(self.stack_FunctionDef, node):
+            lines.extend(
+                '\n'.join('\t' + line for line in self.visit(n).splitlines())
+                for n in node.body
+            )
+
         lines.append('}')
         return '\n'.join(lines)
 
